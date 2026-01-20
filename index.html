@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Reto Lagartijas 💪</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+.app {
+  max-width: 420px;
+  margin: auto;
+  padding: 20px;
+}
+.card {
+  background: #020617;
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+}
+h1 {
+  text-align: center;
+  font-size: 26px;
+}
+.big {
+  font-size: 72px;
+  font-weight: bold;
+  text-align: center;
+  color: #22c55e;
+}
+button {
+  width: 100%;
+  padding: 14px;
+  font-size: 16px;
+  border-radius: 14px;
+  border: none;
+  background: #22c55e;
+  color: #022c22;
+  font-weight: bold;
+  margin-top: 10px;
+}
+button:disabled {
+  background: #334155;
+  color: #94a3b8;
+}
+input {
+  width: 48%;
+  padding: 10px;
+  border-radius: 12px;
+  border: none;
+  background: #020617;
+  color: white;
+  border: 1px solid #1e293b;
+  margin-bottom: 10px;
+}
+.stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+.stat {
+  text-align: center;
+}
+.progress {
+  height: 10px;
+  background: #1e293b;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+.progress div {
+  height: 100%;
+  background: #22c55e;
+}
+.small {
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.7;
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<h1>Reto Lagartijas 💪</h1>
+
+<div class="card">
+  <p class="small" id="fecha"></p>
+  <p class="small">Hoy te tocan</p>
+  <div class="big" id="lagartijas">0</div>
+  <button id="doneBtn">YA LAS HICE</button>
+</div>
+
+<div class="card">
+  <div class="stats">
+    <div class="stat">
+      <b id="racha">0</b><br>🔥 Racha
+    </div>
+    <div class="stat">
+      <b id="total">0</b><br>📊 Total
+    </div>
+  </div>
+  <div class="progress">
+    <div id="barra"></div>
+  </div>
+</div>
+
+<div class="card">
+  <p>⏰ Recordatorios</p>
+  <input type="time" id="h1">
+  <input type="time" id="h2">
+  <button id="notify">ACTIVAR NOTIFICACIONES</button>
+</div>
+
+<p class="small">Disciplina > motivación</p>
+
+</div>
+
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js")
+    .then(()=>console.log("SW registrado"))
+    .catch(err=>console.error("Error SW", err));
+}
+
+const K = { start:"start", done:"done", streak:"streak", last:"last", total:"total", h1:"h1", h2:"h2" };
+
+let start = localStorage.getItem(K.start);
+if (!start) {
+  start = new Date().toISOString().split("T")[0];
+  localStorage.setItem(K.start, start);
+}
+
+const today = new Date();
+const dayKey = today.toISOString().split("T")[0];
+const diff = Math.floor((today - new Date(start))/(1000*60*60*24))+1;
+
+lagartijas.textContent = diff;
+fecha.textContent = today.toLocaleDateString();
+
+let done = JSON.parse(localStorage.getItem(K.done)) || [];
+let streak = Number(localStorage.getItem(K.streak)) || 0;
+let total = Number(localStorage.getItem(K.total)) || 0;
+
+racha.textContent = streak;
+total.textContent = total;
+barra.style.width = Math.min((streak/365)*100,100)+"%";
+
+if (done.includes(dayKey)) doneBtn.disabled = true;
+
+doneBtn.onclick = () => {
+  done.push(dayKey);
+  localStorage.setItem(K.done, JSON.stringify(done));
+
+  const last = localStorage.getItem(K.last);
+  streak = last && (new Date(dayKey)-new Date(last))/(86400000)===1 ? streak+1 : 1;
+  total += diff;
+
+  localStorage.setItem(K.streak, streak);
+  localStorage.setItem(K.total, total);
+  localStorage.setItem(K.last, dayKey);
+
+  location.reload();
+};
+
+h1.value = localStorage.getItem(K.h1) || "08:00";
+h2.value = localStorage.getItem(K.h2) || "18:00";
+
+notify.onclick = async () => {
+  const p = await Notification.requestPermission();
+  if (p !== "granted") return alert("Permiso denegado");
+
+  localStorage.setItem(K.h1, h1.value);
+  localStorage.setItem(K.h2, h2.value);
+
+  navigator.serviceWorker.ready.then(reg => {
+    reg.active.postMessage({
+      type: "CONFIG",
+      horarios: [h1.value, h2.value],
+      reps: diff
+    });
+  });
+
+  alert("✅ Notificaciones activadas");
+};
+</script>
+</body>
+</html>
